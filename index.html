@@ -206,7 +206,7 @@ function render(){
   document.getElementById('cEst').textContent = estTot.toLocaleString('es-SV');
   document.getElementById('cPct').textContent = (100*estTot/baseTotal()).toFixed(1)+'%';
   document.getElementById('cBase').textContent = baseTotal().toLocaleString('es-SV');
-  const sufijo = soloApto ? ' · solo edad permitida (15a – 16a 2m)' : '';
+  const sufijo = soloApto ? ' · solo edad permitida (15a 3m – 16a 2m)' : '';
   document.getElementById('hint').textContent = (fSel===0
     ? `Mostrando ${baseTotal().toLocaleString('es-SV')} estudiantes`
     : `Estudiantes que alcanzan ${FILTROS[fSel]} con 90% de confianza`) + sufijo;
