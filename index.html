@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Despega · Estudiantes asignados</title>
+<title>Estudiantes seleccionados</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="favicon-180.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -61,7 +61,7 @@
 
   .legend{position:absolute;bottom:16px;right:12px;z-index:1000;background:#fff;border:1px solid var(--linea);border-radius:9px;padding:9px 13px;font-size:12px;box-shadow:0 2px 8px rgba(20,40,60,.12)}
   .legend b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--gris);margin-bottom:5px}
-  .legend div{display:flex;align-items:center;gap:7px;margin:3px 0}
+  .legend div{display:flex;align-items:center;gap:7px;margin:3px 0;min-width:150px}
   .legend span{width:11px;height:11px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.12)}
 
   .seccion-tabla{padding:14px 22px 0}
@@ -110,8 +110,6 @@
     <select id="ffecha"><option value="">Todas</option></select></div>
   <div class="fgroup"><span class="tit">Horario</span>
     <select id="fhorario"><option value="">Todos</option></select></div>
-  <div class="fgroup"><span class="tit">Distrito</span>
-    <select id="fdist"><option value="">Todos</option></select></div>
   <div class="search"><input id="busca" type="text" placeholder="Buscar estudiante, NIE o centro…"></div>
   <button class="btn-reset" id="reset">Limpiar</button>
 </div>
@@ -143,7 +141,7 @@ const FLAB = {"2026-06-29": "lun 29 jun", "2026-06-30": "mar 30 jun", "2026-07-0
 const HOR  = ["AM-9:00-12:30", "PM-1:00-4:30"];
 const FECHAS = ["2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02"];
 
-let fFecha='', fHorario='', fDist='', q='', selCod=null, sortCol='est', sortDir=1;
+let fFecha='', fHorario='', q='', selCod=null, sortCol='est', sortDir=1;
 const marcadores={};
 
 /* ---------- MAPA ---------- */
@@ -154,7 +152,7 @@ map.fitBounds(ESC.map(s=>[s.lat,s.lng]),{padding:[28,28]});
 const leg=L.control({position:'bottomright'});
 leg.onAdd=()=>{const d=L.DomUtil.create('div','legend');
   let h='<b>Fecha de prueba</b>';
-  FECHAS.forEach(f=>{h+=`<div><span style="background:${FCOL[f]}"></span> ${FLAB[f]}</div>`;});
+  FECHAS.forEach(f=>{h+=`<div><span style="background:${FCOL[f]}"></span> ${FLAB[f]} <b id="legc-${f}" style="margin-left:auto;font-family:var(--mono)">—</b></div>`;});
   d.innerHTML=h;return d;};
 leg.addTo(map);
 
@@ -168,7 +166,6 @@ function cuentaEsc(s){
 }
 function escVisible(s){
   if(fFecha && escFecha(s)!==fFecha) return false;
-  if(fDist && s.dist!==fDist) return false;
   return true;
 }
 
@@ -213,7 +210,6 @@ function filtraEst(){
     if(fFecha && r.f!==fFecha) return false;
     if(fHorario && r.h!==fHorario) return false;
     if(selCod && r.cod!==selCod) return false;
-    if(fDist){ const e=ESC.find(x=>x.c===r.cod); if(!e||e.dist!==fDist) return false; }
     if(q && !((r.est+' '+r.nie+' '+r.ce).toLowerCase().includes(q))) return false;
     return true;
   });
@@ -226,7 +222,7 @@ function render(){
     const m=marcadores[s.c];
     if(!escVisible(s)){ if(m)m.setStyle({opacity:.12,fillOpacity:.06}); return; }
     const n=cuentaEsc(s);
-    if(n===0 && (fFecha||fHorario||fDist)){ if(m)m.setStyle({opacity:.25,fillOpacity:.12}); return; }
+    if(n===0 && (fFecha||fHorario)){ if(m)m.setStyle({opacity:.25,fillOpacity:.12}); return; }
     escMostradas++; estTot+=n; escItems.push({s,n});
     if(m){ m.setStyle({opacity:1,fillOpacity:.9,fillColor:FCOL[escFecha(s)]}); m.setRadius(radio(n)); }
   });
@@ -248,6 +244,11 @@ function render(){
     fr.appendChild(div);
   });
   le.appendChild(fr);
+
+  /* --- conteo de escuelas por día en la leyenda --- */
+  const porDia={}; FECHAS.forEach(f=>porDia[f]=0);
+  escItems.forEach(({s})=>{ porDia[escFecha(s)]++; });
+  FECHAS.forEach(f=>{ const el=document.getElementById('legc-'+f); if(el)el.textContent=porDia[f]; });
 
   /* --- chip de selección --- */
   const chip=document.getElementById('chipSel');
@@ -285,7 +286,7 @@ function render(){
   document.getElementById('empty').style.display=rows.length?'none':'block';
   document.getElementById('foot').textContent=
     `${rows.length.toLocaleString('es-SV')} de ${EST.length.toLocaleString('es-SV')} estudiantes`+
-    (fFecha?` · ${FLAB[fFecha]}`:'')+(fHorario?` · ${fHorario}`:'')+(fDist?` · ${fDist}`:'')+(selCod?` · centro ${selCod}`:'');
+    (fFecha?` · ${FLAB[fFecha]}`:'')+(fHorario?` · ${fHorario}`:'')+(selCod?` · centro ${selCod}`:'');
 }
 
 /* ---------- POBLAR SELECTS ---------- */
@@ -293,18 +294,15 @@ const selF=document.getElementById('ffecha');
 FECHAS.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=FLAB[f];selF.appendChild(o);});
 const selH=document.getElementById('fhorario');
 HOR.forEach(h=>{const o=document.createElement('option');o.value=h;o.textContent=h;selH.appendChild(o);});
-const selD=document.getElementById('fdist');
-[...new Set(ESC.map(s=>s.dist))].sort((a,b)=>a.localeCompare(b,'es')).forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;selD.appendChild(o);});
 
 /* ---------- EVENTOS ---------- */
 selF.addEventListener('change',e=>{fFecha=e.target.value;render();});
 selH.addEventListener('change',e=>{fHorario=e.target.value;render();});
-selD.addEventListener('change',e=>{fDist=e.target.value;render();});
 document.getElementById('busca').addEventListener('input',e=>{q=e.target.value.trim().toLowerCase();render();});
 document.getElementById('chipX').addEventListener('click',()=>{selCod=null;render();});
 document.getElementById('reset').addEventListener('click',()=>{
-  fFecha='';fHorario='';fDist='';q='';selCod=null;
-  selF.value='';selH.value='';selD.value='';document.getElementById('busca').value='';render();
+  fFecha='';fHorario='';q='';selCod=null;
+  selF.value='';selH.value='';document.getElementById('busca').value='';render();
 });
 render();
 setTimeout(()=>map.invalidateSize(),60);
